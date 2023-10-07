@@ -5,11 +5,6 @@ import services
 app = Flask(__name__)
 
 
-@app.route('/bienvenido', methods=['GET'])
-def bienvenido():
-    return 'Hola mundo'
-
-
 @app.route('/webhook', methods=['GET'])  # type: ignore
 def verificar_token():
     try:
@@ -37,7 +32,6 @@ def recibir_mensajes():
         contacts = value['contacts'][0]
         name = contacts['profile']['name']
         text = services.obtener_Mensaje_whatsapp(message)
-
         services.administrar_chatbot(text, number, messageId)
         return 'enviado'
 

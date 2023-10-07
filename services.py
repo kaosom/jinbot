@@ -3,7 +3,6 @@ import sett
 import json
 import time
 
-
 counter = 0
 
 
@@ -267,12 +266,15 @@ def administrar_chatbot(text, number, messageId):
         list.append(replyButtonData)
         list.append(sticker)
         modificar_counter()
+    elif "quienes somos" in text and len(text.split()) == 3 and counter == 1:
+        pass
     elif "empezar" in text and len(text.split()) == 2 and counter == 2:
         data = text_Message(
             number, "Por favor escribe el nombre del proyecto.😊")
         list.append(data)
         modificar_counter()
     elif counter == 3:
+        print('Dato a guardar en la base: ', text)
         body = "Nombre registrado correctamente.\nQuieres modificar el nombre o continuar?"
         footer = "Equipo ComPasion"
         options = ["✅ Continuar", "❌ Modificar"]
@@ -301,6 +303,7 @@ def administrar_chatbot(text, number, messageId):
                 number, "Recuerda que tienen que ser menos de 100 palabras. Por favor vuelve a escribirla.😊")
             list.append(data)
         else:
+            print('Dato a guardar en la base: ', text)
             body = "Justificacion registrado correctamente.\nQuieres modificar el nombre o continuar?"
             footer = "Equipo ComPasion"
             options = ["✅ Continuar", "❌ Modificar"]
@@ -321,6 +324,7 @@ def administrar_chatbot(text, number, messageId):
         modificar_counter()
 
     elif counter == 7:
+        print('Dato a guardar en la base: ', text)
         body = "Cantidad de dinero registrada.\nQuieres modificar la cantidad de dinero o continuar?"
         footer = "Equipo ComPasion"
         options = ["✅ Continuar", "❌ Modificar"]
@@ -348,6 +352,7 @@ def administrar_chatbot(text, number, messageId):
                 number, options, body, footer, "sed3", messageId)
             list.append(buttonReply)
             modificar_counter()
+            print('Dato a guardar en la base: ', text)
         else:
             data = text_Message(
                 number, "Recuerda que tiene que ser un link de YouTube valido.😊")
@@ -365,6 +370,7 @@ def administrar_chatbot(text, number, messageId):
 
     elif counter == 11:
         if '@' in text:
+            print('Dato a guardar en la base: ', text)
             body = "Correo registrado.\nQuieres modificar el correo o continuar?"
             footer = "Equipo ComPasion"
             options = ["✅ Continuar", "❌ Modificar"]
@@ -389,8 +395,9 @@ def administrar_chatbot(text, number, messageId):
 
     elif counter > 12:
         data = text_Message(
-            number, "HASTA LUEGO")
+            number, 'Que tengas un gran dia')
         list.append(data)
+        modificar_counter(step=0)
 
     else:
         data = text_Message(

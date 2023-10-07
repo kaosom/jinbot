@@ -239,7 +239,7 @@ def administrar_chatbot(text, number, messageId):
     list.append(markRead)
     time.sleep(2)
 
-    if "hola" or 'buenas' or 'ayuda' in text and counter == 0:
+    if "hola" in text and counter == 0:
         body = "¡Hola! 👋 Bienvenido a ConPasion. ¿Cómo podemos ayudarte hoy?"
         footer = "Equipo Compasion"
         options = ["✅ Manual", "📅 Quienes somos"]

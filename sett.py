@@ -2,9 +2,9 @@ import mysql.connector
 
 token = 'compasion'
 
-whatsapp_token = 'EAAJS5K3iTeQBOw8AAbGlT0x3GE3jsKWcQExGusSh4uPACRZAl1OXJ63WioBiVEK68NJzmCYYgMI6cktZC3ZCFFLWfXurkhydZBWM65XbugqPCegIRLiZCZCdIhmRL0wxrNdP89X4m20IzCPFtxXTI28E6YPz3PJHqpta4SP0wpjjCfUqVPPZCgSDlHqfS6Qo1XT3GxjWHpZAvqFQXeEOd5sZD'
+whatsapp_token = 'EAACOEOZAJ6yQBOZC5MStuDdYoZA4xovnhuDe8AmdNsrSZAgMz7L3J67JiO25E62FBJxLRoaeZA6JNcDqmvO9uIlsuZBDNBD8QkRm9RrfUzOB3SlJcZARAyxLJ08J0hTf4ZAzrC9rVBIqEClDbs4IsPOAHFZCZC4Jl5oeKFvcsPxQX6su1WwOi9ofdKzlhFpIqfoyzseklrVzEFCcEMnKwJ7DQZD'
 
-whatsapp_url = 'https://graph.facebook.com/v17.0/129471620252420/messages'
+whatsapp_url = 'https://graph.facebook.com/v17.0/105628682642354/messages'
 
 stickers = {
     "poyo_feliz": 984778742532668,

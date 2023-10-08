@@ -2,6 +2,7 @@ import requests
 import sett
 import json
 import time
+from sett import connection
 
 counter = 0
 
@@ -232,6 +233,34 @@ def markRead_Message(messageId):
     return data
 
 
+def insertar_valores(number, text, columna):
+    try:
+        cursor = connection.cursor()
+
+        # Verificar si el número existe en la base de datos
+        sql_select = "SELECT * FROM `database` WHERE numero = %s"
+        cursor.execute(sql_select, (str(number),))
+        existing_row = cursor.fetchone()
+        print(existing_row)
+
+        if existing_row:
+            # El número ya existe, actualiza la columna correspondiente en la fila existente
+            sql_update = f"UPDATE `database` SET {columna} = %s WHERE numero = %s"
+            cursor.execute(sql_update, (text, number))
+            print('Se actualiza el valor.')
+        else:
+            # El número no existe, crea una nueva fila con el número y la columna correspondiente
+            sql_insert = f"INSERT INTO `database` (numero, {columna}) VALUES (%s, %s)"
+            cursor.execute(sql_insert, (number, text))
+            print("se agrega el valor.")
+
+        connection.commit()
+        print(
+            f"Valor insertado o actualizado con éxito en la columna '{columna}'")
+    except Exception as e:
+        print("Error al insertar o actualizar el valor:", e)
+
+
 def administrar_chatbot(text, number, messageId):
     text = text.lower()  # mensaje que envio el usuario
     list = []
@@ -275,6 +304,7 @@ def administrar_chatbot(text, number, messageId):
         modificar_counter()
     elif counter == 3:
         print('Dato a guardar en la base: ', text)
+        insertar_valores(number=number, text=text, columna='nombre')
         body = "Nombre registrado correctamente.\nQuieres modificar el nombre o continuar?"
         footer = "Equipo ComPasion"
         options = ["✅ Continuar", "❌ Modificar"]
@@ -304,6 +334,7 @@ def administrar_chatbot(text, number, messageId):
             list.append(data)
         else:
             print('Dato a guardar en la base: ', text)
+            insertar_valores(number=number, text=text, columna='justificacion')
             body = "Justificacion registrado correctamente.\nQuieres modificar el nombre o continuar?"
             footer = "Equipo ComPasion"
             options = ["✅ Continuar", "❌ Modificar"]
@@ -325,6 +356,7 @@ def administrar_chatbot(text, number, messageId):
 
     elif counter == 7:
         print('Dato a guardar en la base: ', text)
+        insertar_valores(number=number, text=text, columna='dinero')
         body = "Cantidad de dinero registrada.\nQuieres modificar la cantidad de dinero o continuar?"
         footer = "Equipo ComPasion"
         options = ["✅ Continuar", "❌ Modificar"]
@@ -353,6 +385,7 @@ def administrar_chatbot(text, number, messageId):
             list.append(buttonReply)
             modificar_counter()
             print('Dato a guardar en la base: ', text)
+            insertar_valores(number=number, text=text, columna='video')
         else:
             data = text_Message(
                 number, "Recuerda que tiene que ser un link de YouTube valido.😊")
@@ -371,6 +404,7 @@ def administrar_chatbot(text, number, messageId):
     elif counter == 11:
         if '@' in text:
             print('Dato a guardar en la base: ', text)
+            insertar_valores(number=number, text=text, columna='correo')
             body = "Correo registrado.\nQuieres modificar el correo o continuar?"
             footer = "Equipo ComPasion"
             options = ["✅ Continuar", "❌ Modificar"]

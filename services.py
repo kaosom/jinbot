@@ -2,17 +2,81 @@ import requests
 import sett
 import json
 import time
-from sett import connection
-
-counter = 0
+import mysql.connector
 
 
-def modificar_counter(step=None):
-    global counter
-    if step is None:
-        counter += 1
-    else:
-        counter = step
+class DB:
+    def __init__(self):
+        self.connection = mysql.connector.connect(
+            host="mysql-javiertevillo.alwaysdata.net",
+            user="324312",
+            password="Mecatr0nica",
+            database='javiertevillo_chat'
+        )
+
+        self.cursor = self.connection.cursor()
+        print("Conexion exitosa.")
+
+    def get_total(self):
+        self.sql = "SELECT max(id) FROM database"
+        try:
+            self.cursor.execute(self.sql)
+            self.value = self.cursor.fetchone()
+            return self.value
+        except Exception as e:
+            print("Excepcion: ", e)
+
+    def verificar_existencia(self, telefono):
+        try:
+            # Utiliza una consulta parametrizada para evitar la inyección SQL
+            sql = "SELECT telefono FROM `database` WHERE telefono = %s"
+            self.cursor.execute(sql, (telefono,))
+            value = self.cursor.fetchone()
+
+            # Si no se encuentra ningún registro, retorna False; de lo contrario, retorna True
+            return value is not None
+        except Exception as e:
+            print("Excepción en verificar existencia:", e)
+            return False  # Retorna False en caso de error
+
+    def recuperar_posicion(self, telefono):
+        if self.verificar_existencia(telefono):
+            try:
+                self.sql = f"SELECT counter FROM `database` WHERE telefono = %s"
+                self.cursor.execute(self.sql, (telefono,))
+                self.value = self.cursor.fetchone()
+                if self.value is not None:
+                    return self.value[0]
+                else:
+                    return 0
+            except Exception as e:
+                print("Exception en recuperar posicion: ", e)
+        else:
+            print("Retorno cero")
+            return 0
+
+    def modificar_posicion(self, telefono, counter, position=None):
+        if position is None:
+            if counter is not None:
+                counter += 1
+            self.insertar(telefono, counter, 'counter')
+        else:
+            counter = position
+            self.insertar(telefono, position, 'counter')
+
+    def insertar(self, telefono: str, valor, columna: str):
+        if self.verificar_existencia(telefono):
+            # Corregir la columna 'numero' a 'telefono'
+            sql = f"UPDATE `database` SET {columna} = %s WHERE telefono = %s"
+            # Usar 'sql' en lugar de 'self.sql'
+            self.cursor.execute(sql, (valor, telefono))
+        else:
+            # Corregir la sintaxis de la inserción
+            sql = f"INSERT INTO `database` (telefono, {columna}) VALUES (%s, %s)"
+            # Intercambiar 'telefono' y 'valor' en la tupla de valores
+            self.cursor.execute(sql, (telefono, valor))
+
+        self.connection.commit()
 
 
 def obtener_Mensaje_whatsapp(message):
@@ -42,9 +106,7 @@ def enviar_Mensaje_whatsapp(data):
         headers = {'Content-Type': 'application/json',
                    'Authorization': 'Bearer ' + whatsapp_token}
         print("se envia ", data)
-        response = requests.post(whatsapp_url,
-                                 headers=headers,
-                                 data=data)
+        response = requests.post(whatsapp_url, headers=headers, data=data)
 
         if response.status_code == 200:
             return 'mensaje enviado', 200
@@ -181,12 +243,6 @@ def get_media_id(media_name, media_type):
     media_id = ""
     if media_type == "sticker":
         media_id = sett.stickers.get(media_name, None)
-    # elif media_type == "image":
-    #    media_id = sett.images.get(media_name, None)
-    # elif media_type == "video":
-    #    media_id = sett.videos.get(media_name, None)
-    # elif media_type == "audio":
-    #    media_id = sett.audio.get(media_name, None)
     return media_id
 
 
@@ -233,39 +289,13 @@ def markRead_Message(messageId):
     return data
 
 
-def insertar_valores(number, text, columna):
-    try:
-        cursor = connection.cursor()
-
-        # Verificar si el número existe en la base de datos
-        sql_select = "SELECT * FROM `database` WHERE numero = %s"
-        cursor.execute(sql_select, (str(number),))
-        existing_row = cursor.fetchone()
-        print(existing_row)
-
-        if existing_row:
-            # El número ya existe, actualiza la columna correspondiente en la fila existente
-            sql_update = f"UPDATE `database` SET {columna} = %s WHERE numero = %s"
-            cursor.execute(sql_update, (text, number))
-            print('Se actualiza el valor.')
-        else:
-            # El número no existe, crea una nueva fila con el número y la columna correspondiente
-            sql_insert = f"INSERT INTO `database` (numero, {columna}) VALUES (%s, %s)"
-            cursor.execute(sql_insert, (number, text))
-            print("se agrega el valor.")
-
-        connection.commit()
-        print(
-            f"Valor insertado o actualizado con éxito en la columna '{columna}'")
-    except Exception as e:
-        print("Error al insertar o actualizar el valor:", e)
-
-
 def administrar_chatbot(text, number, messageId):
+    base = DB()
+    counter = base.recuperar_posicion(number)
+    if counter is None:
+        counter = 0
     text = text.lower()  # mensaje que envio el usuario
     list = []
-    print("$ ", text)
-
     markRead = markRead_Message(messageId)
     list.append(markRead)
     time.sleep(2)
@@ -280,7 +310,8 @@ def administrar_chatbot(text, number, messageId):
         replyReaction = replyReaction_Message(number, messageId, "🫡")
         list.append(replyReaction)
         list.append(replyButtonData)
-        modificar_counter()
+        base.modificar_posicion(number, counter)
+        print("counter", counter)
     elif "manual" in text and len(text.split()) == 2 and counter == 1:
         body = "En el orden que se te vaya pidiendo deberás escribir los siguientes datos:\n1. Nombre del proyecto que requiere un apoyo economico.\n2. Justificacion del proyecto (menos de 100 palabras)\n3.Cantidad de dinero.\n4. Video subido a YT para mostrar el proyecto.\n5. Correo para mandar resultados."
         footer = "ComPasion Contigo."
@@ -294,17 +325,17 @@ def administrar_chatbot(text, number, messageId):
 
         list.append(replyButtonData)
         list.append(sticker)
-        modificar_counter()
+        base.modificar_posicion(number, counter)
     elif "quienes somos" in text and len(text.split()) == 3 and counter == 1:
         pass
     elif "empezar" in text and len(text.split()) == 2 and counter == 2:
         data = text_Message(
             number, "Por favor escribe el nombre del proyecto.😊")
         list.append(data)
-        modificar_counter()
+        base.modificar_posicion(number, counter)
     elif counter == 3:
         print('Dato a guardar en la base: ', text)
-        insertar_valores(number=number, text=text, columna='nombre')
+        base.insertar(number, text, 'nombre')
         body = "Nombre registrado correctamente.\nQuieres modificar el nombre o continuar?"
         footer = "Equipo ComPasion"
         options = ["✅ Continuar", "❌ Modificar"]
@@ -312,7 +343,7 @@ def administrar_chatbot(text, number, messageId):
         buttonReply = buttonReply_Message(
             number, options, body, footer, "sed3", messageId)
         list.append(buttonReply)
-        modificar_counter()
+        base.modificar_posicion(number, counter)
     elif "cancelar" in text and len(text.split()) == 2:
         data = text_Message(
             number, "Operacion cancelada. Que tengas un buen día. 😊")
@@ -321,12 +352,12 @@ def administrar_chatbot(text, number, messageId):
         data = text_Message(
             number, "Escribe nuevamente el nombre. 😊")
         list.append(data)
-        modificar_counter(step=3)
+        base.modificar_posicion(number, counter, position=3)
     elif "continuar" in text and len(text.split()) == 2 and counter == 4:
         data = text_Message(
             number, "Por favor escribe la justificacion.😊")
         list.append(data)
-        modificar_counter()
+        base.modificar_posicion(number, counter)
     elif counter == 5:
         if len(text.split()) > 100:
             data = text_Message(
@@ -334,7 +365,7 @@ def administrar_chatbot(text, number, messageId):
             list.append(data)
         else:
             print('Dato a guardar en la base: ', text)
-            insertar_valores(number=number, text=text, columna='justificacion')
+            base.insertar(number, text, 'justificacion')
             body = "Justificacion registrado correctamente.\nQuieres modificar el nombre o continuar?"
             footer = "Equipo ComPasion"
             options = ["✅ Continuar", "❌ Modificar"]
@@ -342,38 +373,38 @@ def administrar_chatbot(text, number, messageId):
             buttonReply = buttonReply_Message(
                 number, options, body, footer, "sed3", messageId)
             list.append(buttonReply)
-            modificar_counter()
+            base.modificar_posicion(number, counter)
     elif "modificar" in text and len(text.split()) == 2 and counter == 6:
         data = text_Message(
             number, "Escribe nuevamente la justificacion. 😊")
         list.append(data)
-        modificar_counter(step=5)
+        base.modificar_posicion(number, counter, position=5)
     elif "continuar" in text and len(text.split()) == 2 and counter == 6:
         data = text_Message(
             number, "Por favor escribe la cantidad de dinero.😊")
         list.append(data)
-        modificar_counter()
+        base.modificar_posicion(number, counter)
 
     elif counter == 7:
         print('Dato a guardar en la base: ', text)
-        insertar_valores(number=number, text=text, columna='dinero')
+        base.insertar(number, text, 'dinero')
         body = "Cantidad de dinero registrada.\nQuieres modificar la cantidad de dinero o continuar?"
         footer = "Equipo ComPasion"
         options = ["✅ Continuar", "❌ Modificar"]
         buttonReply = buttonReply_Message(
             number, options, body, footer, "sed3", messageId)
         list.append(buttonReply)
-        modificar_counter()
+        base.modificar_posicion(number, counter)
     elif "modificar" in text and len(text.split()) == 2 and counter == 8:
         data = text_Message(
             number, "Escribe nuevamente la cantidad de dinero. 😊")
         list.append(data)
-        modificar_counter(step=7)
+        base.modificar_posicion(number, counter, position=7)
     elif "continuar" in text and len(text.split()) == 2 and counter == 8:
         data = text_Message(
             number, "Ingrese unicamente la URL del video de YouTube.😊")
         list.append(data)
-        modificar_counter()
+        base.modificar_posicion(number, counter)
 
     elif counter == 9:
         if 'https://www.youtube.com/' in text:
@@ -383,9 +414,9 @@ def administrar_chatbot(text, number, messageId):
             buttonReply = buttonReply_Message(
                 number, options, body, footer, "sed3", messageId)
             list.append(buttonReply)
-            modificar_counter()
+            base.modificar_posicion(number, counter)
             print('Dato a guardar en la base: ', text)
-            insertar_valores(number=number, text=text, columna='video')
+            base.insertar(number, text, 'video')
         else:
             data = text_Message(
                 number, "Recuerda que tiene que ser un link de YouTube valido.😊")
@@ -394,24 +425,24 @@ def administrar_chatbot(text, number, messageId):
         data = text_Message(
             number, "Escribe nuevamente la URL. 😊")
         list.append(data)
-        modificar_counter(step=9)
+        base.modificar_posicion(number, counter, position=9)
     elif "continuar" in text and len(text.split()) == 2 and counter == 10:
         data = text_Message(
             number, "Ingrese su correo electronico.")
         list.append(data)
-        modificar_counter()
+        base.modificar_posicion(number, counter)
 
     elif counter == 11:
         if '@' in text:
             print('Dato a guardar en la base: ', text)
-            insertar_valores(number=number, text=text, columna='correo')
+            base.insertar(number, text, 'correo')
             body = "Correo registrado.\nQuieres modificar el correo o continuar?"
             footer = "Equipo ComPasion"
             options = ["✅ Continuar", "❌ Modificar"]
             buttonReply = buttonReply_Message(
                 number, options, body, footer, "sed3", messageId)
             list.append(buttonReply)
-            modificar_counter()
+            base.modificar_posicion(number, counter)
         else:
             data = text_Message(
                 number, "Recuerda que tiene que ser un correo valido.😊")
@@ -420,22 +451,15 @@ def administrar_chatbot(text, number, messageId):
         data = text_Message(
             number, "Escribe nuevamente el correo. 😊")
         list.append(data)
-        modificar_counter(step=11)
+        base.modificar_posicion(number, counter, position=11)
     elif "continuar" in text and len(text.split()) == 2 and counter == 12:
         data = text_Message(
             number, "Muchas gracias por toda su informacion, se le enviara un correo indicando su status.")
         list.append(data)
-        modificar_counter()
-
-    elif counter > 12:
-        data = text_Message(
-            number, 'Que tengas un gran dia')
-        list.append(data)
-        modificar_counter(step=0)
-
+        base.modificar_posicion(number, counter)
     else:
         data = text_Message(
-            number, "Por favor ingresa alguna de las opciones indicadas. 😬")
+            number, "Recuerda que solamente es una solicitud por numero de telefono.😬")
         list.append(data)
 
     for item in list:

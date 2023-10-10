@@ -1,5 +1,3 @@
-import mysql.connector
-
 token = 'compasion'
 
 whatsapp_token = 'EAACOEOZAJ6yQBOZC5MStuDdYoZA4xovnhuDe8AmdNsrSZAgMz7L3J67JiO25E62FBJxLRoaeZA6JNcDqmvO9uIlsuZBDNBD8QkRm9RrfUzOB3SlJcZARAyxLJ08J0hTf4ZAzrC9rVBIqEClDbs4IsPOAHFZCZC4Jl5oeKFvcsPxQX6su1WwOi9ofdKzlhFpIqfoyzseklrVzEFCcEMnKwJ7DQZD'
@@ -23,11 +21,3 @@ stickers = {
 }
 
 document_url = "https://www.africau.edu/images/default/sample.pdf"
-
-
-connection = mysql.connector.connect(
-    host="mysql-javiertevillo.alwaysdata.net",
-    user="324312",
-    password="Mecatr0nica",
-    database='javiertevillo_chat'
-)

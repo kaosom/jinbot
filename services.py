@@ -1,7 +1,6 @@
 import requests
 import sett
 import json
-import time
 import mysql.connector
 
 
@@ -18,11 +17,11 @@ class DB:
         print("Conexion exitosa.")
 
     def get_total(self):
-        self.sql = "SELECT max(id) FROM database"
+        self.sql = "SELECT max(id) FROM `database`"
         try:
             self.cursor.execute(self.sql)
             self.value = self.cursor.fetchone()
-            return self.value
+            return self.value[0]
         except Exception as e:
             print("Excepcion: ", e)
 
@@ -47,8 +46,7 @@ class DB:
                 self.value = self.cursor.fetchone()
                 if self.value is not None:
                     return self.value[0]
-                else:
-                    return 0
+                return 0
             except Exception as e:
                 print("Exception en recuperar posicion: ", e)
         else:
@@ -77,6 +75,21 @@ class DB:
             self.cursor.execute(sql, (telefono, valor))
 
         self.connection.commit()
+
+    def getStatus(self, id):
+        try:
+            sql = "SELECT status FROM `database` WHERE id = %s"
+            self.cursor.execute(sql, (id,))
+            result = self.cursor.fetchone()
+
+            if result is not None:
+                return result[0]
+
+            return 0
+        except Exception as e:
+            print("Excepción en getStatus: ", e)
+            return 0
+        
 
 
 def obtener_Mensaje_whatsapp(message):
@@ -278,7 +291,15 @@ def replyText_Message(number, messageId, text):
     return data
 
 
+def replace_start(s):
+    if s.startswith("521"):
+        return "52" + s[3:]
+    else:
+        return s
+
 def markRead_Message(messageId):
+    
+    
     data = json.dumps(
         {
             "messaging_product": "whatsapp",
@@ -292,81 +313,56 @@ def markRead_Message(messageId):
 def administrar_chatbot(text, number, messageId):
     base = DB()
     counter = base.recuperar_posicion(number)
-    if counter is None:
+    total = base.get_total()
+    # Correciones
+    if counter is None: 
         counter = 0
-    text = text.lower()  # mensaje que envio el usuario
+    if total is None: 
+        total = 0
+        
+    # Inicio de la logica. 
+    text = text.lower() 
     list = []
     markRead = markRead_Message(messageId)
     list.append(markRead)
-    time.sleep(2)
+    if total <= 50 and not base.getStatus('0'):
+        if counter == 0:
+            body = "¡Hola! 👋 Bienvenido a ConPasion. ¿Cómo podemos ayudarte hoy?"
+            footer = "Equipo Compasion"
+            options = ["✅ Manual", "📅 Quienes somos"]
 
-    if counter == 0:
-        body = "¡Hola! 👋 Bienvenido a ConPasion. ¿Cómo podemos ayudarte hoy?"
-        footer = "Equipo Compasion"
-        options = ["✅ Manual", "📅 Quienes somos"]
+            replyButtonData = buttonReply_Message(
+                number, options, body, footer, "sed1", messageId)
+            replyReaction = replyReaction_Message(number, messageId, "🫡")
+            list.append(replyReaction)
+            list.append(replyButtonData)
+            base.modificar_posicion(number, counter)
+            print("counter", counter)
+        elif "manual" in text and len(text.split()) == 2 and counter == 1:
+            body = "En el orden que se te vaya pidiendo deberás escribir los siguientes datos:\n1. Nombre del proyecto que requiere un apoyo economico.\n2. Justificacion del proyecto (menos de 100 palabras)\n3.Cantidad de dinero.\n4. Video subido a YT para mostrar el proyecto.\n5. Correo para mandar resultados."
+            footer = "ComPasion Contigo."
+            options = ["✅ Empezar",
+                    "❌ Cancelar"]
 
-        replyButtonData = buttonReply_Message(
-            number, options, body, footer, "sed1", messageId)
-        replyReaction = replyReaction_Message(number, messageId, "🫡")
-        list.append(replyReaction)
-        list.append(replyButtonData)
-        base.modificar_posicion(number, counter)
-        print("counter", counter)
-    elif "manual" in text and len(text.split()) == 2 and counter == 1:
-        body = "En el orden que se te vaya pidiendo deberás escribir los siguientes datos:\n1. Nombre del proyecto que requiere un apoyo economico.\n2. Justificacion del proyecto (menos de 100 palabras)\n3.Cantidad de dinero.\n4. Video subido a YT para mostrar el proyecto.\n5. Correo para mandar resultados."
-        footer = "ComPasion Contigo."
-        options = ["✅ Empezar",
-                   "❌ Cancelar"]
+            replyButtonData = buttonReply_Message(
+                number, options, body, footer, "sed2", messageId)
+            sticker = sticker_Message(
+                number, get_media_id("perro_traje", "sticker"))
 
-        replyButtonData = buttonReply_Message(
-            number, options, body, footer, "sed2", messageId)
-        sticker = sticker_Message(
-            number, get_media_id("perro_traje", "sticker"))
-
-        list.append(replyButtonData)
-        list.append(sticker)
-        base.modificar_posicion(number, counter)
-    elif "quienes somos" in text and len(text.split()) == 3 and counter == 1:
-        pass
-    elif "empezar" in text and len(text.split()) == 2 and counter == 2:
-        data = text_Message(
-            number, "Por favor escribe el nombre del proyecto.😊")
-        list.append(data)
-        base.modificar_posicion(number, counter)
-    elif counter == 3:
-        print('Dato a guardar en la base: ', text)
-        base.insertar(number, text, 'nombre')
-        body = "Nombre registrado correctamente.\nQuieres modificar el nombre o continuar?"
-        footer = "Equipo ComPasion"
-        options = ["✅ Continuar", "❌ Modificar"]
-
-        buttonReply = buttonReply_Message(
-            number, options, body, footer, "sed3", messageId)
-        list.append(buttonReply)
-        base.modificar_posicion(number, counter)
-    elif "cancelar" in text and len(text.split()) == 2:
-        data = text_Message(
-            number, "Operacion cancelada. Que tengas un buen día. 😊")
-        list.append(data)
-    elif "modificar" in text and len(text.split()) == 2 and counter == 4:
-        data = text_Message(
-            number, "Escribe nuevamente el nombre. 😊")
-        list.append(data)
-        base.modificar_posicion(number, counter, position=3)
-    elif "continuar" in text and len(text.split()) == 2 and counter == 4:
-        data = text_Message(
-            number, "Por favor escribe la justificacion.😊")
-        list.append(data)
-        base.modificar_posicion(number, counter)
-    elif counter == 5:
-        if len(text.split()) > 100:
+            list.append(replyButtonData)
+            list.append(sticker)
+            base.modificar_posicion(number, counter)
+        elif "quienes somos" in text and len(text.split()) == 3 and counter == 1:
+            pass
+        elif "empezar" in text and len(text.split()) == 2 and counter == 2:
             data = text_Message(
-                number, "Recuerda que tienen que ser menos de 100 palabras. Por favor vuelve a escribirla.😊")
+                number, "Por favor escribe el nombre del proyecto.😊")
             list.append(data)
-        else:
+            base.modificar_posicion(number, counter)
+        elif counter == 3:
             print('Dato a guardar en la base: ', text)
-            base.insertar(number, text, 'justificacion')
-            body = "Justificacion registrado correctamente.\nQuieres modificar el nombre o continuar?"
+            base.insertar(number, text, 'nombre')
+            body = "Nombre registrado correctamente.\nQuieres modificar el nombre o continuar?"
             footer = "Equipo ComPasion"
             options = ["✅ Continuar", "❌ Modificar"]
 
@@ -374,100 +370,128 @@ def administrar_chatbot(text, number, messageId):
                 number, options, body, footer, "sed3", messageId)
             list.append(buttonReply)
             base.modificar_posicion(number, counter)
-    elif "modificar" in text and len(text.split()) == 2 and counter == 6:
-        data = text_Message(
-            number, "Escribe nuevamente la justificacion. 😊")
-        list.append(data)
-        base.modificar_posicion(number, counter, position=5)
-    elif "continuar" in text and len(text.split()) == 2 and counter == 6:
-        data = text_Message(
-            number, "Por favor escribe la cantidad de dinero.😊")
-        list.append(data)
-        base.modificar_posicion(number, counter)
+        elif "cancelar" in text and len(text.split()) == 2:
+            data = text_Message(
+                number, "Operacion cancelada. Que tengas un buen día. 😊")
+            list.append(data)
+        elif "modificar" in text and len(text.split()) == 2 and counter == 4:
+            data = text_Message(
+                number, "Escribe nuevamente el nombre. 😊")
+            list.append(data)
+            base.modificar_posicion(number, counter, position=3)
+        elif "continuar" in text and len(text.split()) == 2 and counter == 4:
+            data = text_Message(
+                number, "Por favor escribe la justificacion.😊")
+            list.append(data)
+            base.modificar_posicion(number, counter)
+        elif counter == 5:
+            if len(text.split()) > 100:
+                data = text_Message(
+                    number, "Recuerda que tienen que ser menos de 100 palabras. Por favor vuelve a escribirla.😊")
+                list.append(data)
+            else:
+                print('Dato a guardar en la base: ', text)
+                base.insertar(number, text, 'justificacion')
+                body = "Justificacion registrado correctamente.\nQuieres modificar el nombre o continuar?"
+                footer = "Equipo ComPasion"
+                options = ["✅ Continuar", "❌ Modificar"]
 
-    elif counter == 7:
-        print('Dato a guardar en la base: ', text)
-        base.insertar(number, text, 'dinero')
-        body = "Cantidad de dinero registrada.\nQuieres modificar la cantidad de dinero o continuar?"
-        footer = "Equipo ComPasion"
-        options = ["✅ Continuar", "❌ Modificar"]
-        buttonReply = buttonReply_Message(
-            number, options, body, footer, "sed3", messageId)
-        list.append(buttonReply)
-        base.modificar_posicion(number, counter)
-    elif "modificar" in text and len(text.split()) == 2 and counter == 8:
-        data = text_Message(
-            number, "Escribe nuevamente la cantidad de dinero. 😊")
-        list.append(data)
-        base.modificar_posicion(number, counter, position=7)
-    elif "continuar" in text and len(text.split()) == 2 and counter == 8:
-        data = text_Message(
-            number, "Ingrese unicamente la URL del video de YouTube.😊")
-        list.append(data)
-        base.modificar_posicion(number, counter)
+                buttonReply = buttonReply_Message(
+                    number, options, body, footer, "sed3", messageId)
+                list.append(buttonReply)
+                base.modificar_posicion(number, counter)
+        elif "modificar" in text and len(text.split()) == 2 and counter == 6:
+            data = text_Message(
+                number, "Escribe nuevamente la justificacion. 😊")
+            list.append(data)
+            base.modificar_posicion(number, counter, position=5)
+        elif "continuar" in text and len(text.split()) == 2 and counter == 6:
+            data = text_Message(
+                number, "Por favor escribe la cantidad de dinero.😊")
+            list.append(data)
+            base.modificar_posicion(number, counter)
 
-    elif counter == 9:
-        if 'https://www.youtube.com/' in text:
-            body = "Video registrado.\nQuieres modificar la url o continuar?"
+        elif counter == 7:
+            print('Dato a guardar en la base: ', text)
+            base.insertar(number, text, 'dinero')
+            body = "Cantidad de dinero registrada.\nQuieres modificar la cantidad de dinero o continuar?"
             footer = "Equipo ComPasion"
             options = ["✅ Continuar", "❌ Modificar"]
             buttonReply = buttonReply_Message(
                 number, options, body, footer, "sed3", messageId)
             list.append(buttonReply)
             base.modificar_posicion(number, counter)
-            print('Dato a guardar en la base: ', text)
-            base.insertar(number, text, 'video')
-        else:
+        elif "modificar" in text and len(text.split()) == 2 and counter == 8:
             data = text_Message(
-                number, "Recuerda que tiene que ser un link de YouTube valido.😊")
+                number, "Escribe nuevamente la cantidad de dinero. 😊")
             list.append(data)
-    elif "modificar" in text and len(text.split()) == 2 and counter == 10:
-        data = text_Message(
-            number, "Escribe nuevamente la URL. 😊")
-        list.append(data)
-        base.modificar_posicion(number, counter, position=9)
-    elif "continuar" in text and len(text.split()) == 2 and counter == 10:
-        data = text_Message(
-            number, "Ingrese su correo electronico.")
-        list.append(data)
-        base.modificar_posicion(number, counter)
+            base.modificar_posicion(number, counter, position=7)
+        elif "continuar" in text and len(text.split()) == 2 and counter == 8:
+            data = text_Message(
+                number, "Ingrese unicamente la URL del video de YouTube.😊")
+            list.append(data)
+            base.modificar_posicion(number, counter)
 
-    elif counter == 11:
-        if '@' in text:
-            print('Dato a guardar en la base: ', text)
-            base.insertar(number, text, 'correo')
-            body = "Correo registrado.\nQuieres modificar el correo o continuar?"
-            footer = "Equipo ComPasion"
-            options = ["✅ Continuar", "❌ Modificar"]
-            buttonReply = buttonReply_Message(
-                number, options, body, footer, "sed3", messageId)
-            list.append(buttonReply)
+        elif counter == 9:
+            if 'www.you' in text:
+                body = "Video registrado.\nQuieres modificar la url o continuar?"
+                footer = "Equipo ComPasion"
+                options = ["✅ Continuar", "❌ Modificar"]
+                buttonReply = buttonReply_Message(
+                    number, options, body, footer, "sed3", messageId)
+                list.append(buttonReply)
+                base.modificar_posicion(number, counter)
+                print('Dato a guardar en la base: ', text)
+                base.insertar(number, text, 'video')
+            else:
+                data = text_Message(
+                    number, "Recuerda que tiene que ser un link de YouTube valido.😊")
+                list.append(data)
+        elif "modificar" in text and len(text.split()) == 2 and counter == 10:
+            data = text_Message(
+                number, "Escribe nuevamente la URL. 😊")
+            list.append(data)
+            base.modificar_posicion(number, counter, position=9)
+        elif "continuar" in text and len(text.split()) == 2 and counter == 10:
+            data = text_Message(
+                number, "Ingrese su correo electronico.")
+            list.append(data)
+            base.modificar_posicion(number, counter)
+
+        elif counter == 11:
+            if '@' in text:
+                print('Dato a guardar en la base: ', text)
+                base.insertar(number, text, 'correo')
+                body = "Correo registrado.\nQuieres modificar el correo o continuar?"
+                footer = "Equipo ComPasion"
+                options = ["✅ Continuar", "❌ Modificar"]
+                buttonReply = buttonReply_Message(
+                    number, options, body, footer, "sed3", messageId)
+                list.append(buttonReply)
+                base.modificar_posicion(number, counter)
+            else:
+                data = text_Message(
+                    number, "Recuerda que tiene que ser un correo valido.😊")
+                list.append(data)
+        elif "modificar" in text and len(text.split()) == 2 and counter == 12:
+            data = text_Message(
+                number, "Escribe nuevamente el correo. 😊")
+            list.append(data)
+            base.modificar_posicion(number, counter, position=11)
+        elif "continuar" in text and len(text.split()) == 2 and counter == 12:
+            data = text_Message(
+                number, "Muchas gracias por toda su informacion, se le enviara un correo indicando su status.")
+            list.append(data)
             base.modificar_posicion(number, counter)
         else:
             data = text_Message(
-                number, "Recuerda que tiene que ser un correo valido.😊")
+                number, "Solamente se puede ingresar una solicitud por numero de telefono. 😁")
             list.append(data)
-    elif "modificar" in text and len(text.split()) == 2 and counter == 12:
+    else: 
         data = text_Message(
-            number, "Escribe nuevamente el correo. 😊")
+                number, "Gracias por querer participar, pero lamentamos informarte que el numero maximo de solicitudes ha sido alcanzado. 👀")
         list.append(data)
-        base.modificar_posicion(number, counter, position=11)
-    elif "continuar" in text and len(text.split()) == 2 and counter == 12:
-        data = text_Message(
-            number, "Muchas gracias por toda su informacion, se le enviara un correo indicando su status.")
-        list.append(data)
-        base.modificar_posicion(number, counter)
-    else:
-        data = text_Message(
-            number, "Recuerda que solamente es una solicitud por numero de telefono.😬")
-        list.append(data)
-
+        
     for item in list:
         enviar_Mensaje_whatsapp(item)
-
-
-def replace_start(s):
-    if s.startswith("521"):
-        return "52" + s[3:]
-    else:
-        return s
+        

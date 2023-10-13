@@ -2,6 +2,8 @@ import requests
 import sett
 import json
 import mysql.connector
+import smtplib
+import random
 
 
 class DB:
@@ -89,6 +91,38 @@ class DB:
         except Exception as e:
             print("Excepción en getStatus: ", e)
             return 0
+        
+        
+    def setStatus(self, id, status): 
+        try: 
+            sql = f"UPDATE `database` SET status = %s WHERE id = %s"
+            # Usar 'sql' en lugar de 'self.sql'
+            self.cursor.execute(sql, (status, id))
+            self.connection.commit()
+        except Exception as e: 
+            print("Excepcion ocurrida en setStatus: ", e)
+            
+    def get_all_information(self): 
+        try:
+            sql = "SELECT * FROM `database`"
+            self.cursor.execute(sql)
+            result = self.cursor.fetchall()
+            print('Result: ', result)
+            print("type", type(result))
+            if result is not None:
+                return result
+            return 0
+        except Exception as e:
+            print("Excepción en getStatus: ", e)
+            return 0
+        
+    def set_reciben(self, total): 
+        for i in range(2, total): 
+            status = random.randint(0, 1)
+            print(f'El estatus para {i} es {status}')
+            self.setStatus(i, status)
+            
+        
         
 
 
@@ -310,6 +344,45 @@ def markRead_Message(messageId):
     return data
 
 
+def send_mail(datos):
+    name_account = "ComPasion"
+    email_account = "compasion.work@gmail.com"
+    password_account = "yrtrzrhvtovtaqlt"
+    
+    server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+    server.ehlo()
+    server.login(email_account, password_account)
+    
+    subject = 'Status de convocatoria ComPasion.'
+    for dato in datos: 
+        number = dato[0]
+        name = dato[1]
+        justification = dato[2]
+        dinero = dato[3]
+        link = dato[4]
+        email = dato[5]
+        status = dato[7]
+        
+        if status: 
+            message = "Felicidades!! Has conseguido el apoyo economico por parte de ComPasion."
+        else: 
+            message = "Lamentamos informarte que tu apoyo por parte de ComPasion ha sido rechazado."
+        
+        message += f'Tu informacion registrada fue la siguiente:\nNumero: {number}\nNombre del Proyecto: {name}\nJustificacion: {justification}\nCantidad de dinero: {dinero}\nLink a video de YouTube: {link}'
+        sent_email = ("From: {0} <{1}>\n"
+                    "To: {2} <{3}>\n"
+                    "Subject: {4}\n\n"
+                    "{5}"
+                    .format(name_account, email_account, name, email, subject, message))
+        print(sent_email)
+        try:
+            server.sendmail(email_account, [email], sent_email)
+        except Exception:
+            print('Could not send email to {}. Error: {}\n'.format(email, str(Exception)))
+
+    # Close smtp server
+    server.close()
+    
 def administrar_chatbot(text, number, messageId):
     base = DB()
     counter = base.recuperar_posicion(number)
@@ -320,12 +393,11 @@ def administrar_chatbot(text, number, messageId):
     if total is None: 
         total = 0
         
-    # Inicio de la logica. 
     text = text.lower() 
     list = []
     markRead = markRead_Message(messageId)
     list.append(markRead)
-    if total <= 50 and not base.getStatus('0'):
+    if total <= 3:
         if counter == 0:
             body = "¡Hola! 👋 Bienvenido a ConPasion. ¿Cómo podemos ayudarte hoy?"
             footer = "Equipo Compasion"
@@ -488,6 +560,16 @@ def administrar_chatbot(text, number, messageId):
                 number, "Solamente se puede ingresar una solicitud por numero de telefono. 😁")
             list.append(data)
     else: 
+        if not base.getStatus('0'): 
+            # Actualizar estado del primero 
+            base.setStatus('0', 1)
+            # Obtener los datos de la tabla 
+            
+            # Establecer quienes si van a tener el apoyo
+            base.set_reciben(3)
+            datos = base.get_all_information()
+            # Mandar el correo de estatus
+            send_mail(datos)
         data = text_Message(
                 number, "Gracias por querer participar, pero lamentamos informarte que el numero maximo de solicitudes ha sido alcanzado. 👀")
         list.append(data)

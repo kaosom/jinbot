@@ -21,3 +21,5 @@ stickers = {
 }
 
 document_url = "https://www.africau.edu/images/default/sample.pdf"
+
+administradores = '2481284457', '2481559329'

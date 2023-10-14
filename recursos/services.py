@@ -1,10 +1,10 @@
 import requests
-import sett
 import json
 import mysql.connector
 import smtplib
 import random
-
+import sett
+TOTAL_SOLICITUDES = 1
 
 class DB:
     def __init__(self):
@@ -17,16 +17,122 @@ class DB:
 
         self.cursor = self.connection.cursor()
         print("Conexion exitosa.")
-
-    def get_total(self):
-        self.sql = "SELECT max(id) FROM `database`"
+        
+    # ========================================
+    # ADMIN MODE
+    # ========================================
+    def get_status_encuesta_finalizada(self):
         try:
-            self.cursor.execute(self.sql)
+            sql = "SELECT encuesta_finalizada FROM `global` WHERE referencia = 1"
+            self.cursor.execute(sql)
+            result = self.cursor.fetchone()
+            return result[0]
+        except Exception as e:
+            print("Excepción en get_status_encuesta_finalizada: ", e)
+            return 0
+    def set_status_encuesta_finalizada(self): 
+        try: 
+            sql = f"UPDATE `global` SET encuesta_finalizada = 1 WHERE id = 1"
+            # Usar 'sql' en lugar de 'self.sql'
+            self.cursor.execute(sql)
+            self.connection.commit()
+        except Exception as e: 
+            print("Excepcion ocurrida en setStatusEncuestaFinalizada: ", e)
+    def get_counter_admin_mode(self, telefono): 
+        try:
+            sql = "SELECT counter FROM `evaluadores` WHERE numero_evaluador = %s"
+            self.cursor.execute(sql, (telefono,))
             self.value = self.cursor.fetchone()
             return self.value[0]
         except Exception as e:
-            print("Excepcion: ", e)
+            print("Exception en recuperar posicion: ", e)
+    def set_counter_admin_mode(self, telefono, admin_counter, position = None):
+        if position is None:
+            if admin_counter is not None:
+                admin_counter += 1
+        else:
+            admin_counter= position 
+        try: 
+            sql = "UPDATE `evaluadores` SET counter = %s WHERE numero_evaluador = %s"
+            self.cursor.execute(sql, (admin_counter, telefono))
+            self.connection.commit()   
+        except Exception as e: 
+            print("set_counter_admin_mode error: ", e)     
+    def set_datos(self, telefono, inicio, final):
+        try:        # Corregir la columna 'numero' a 'telefono'
+            sql = f"UPDATE `evaluadores` SET inicio = %s WHERE numero_evaluador = %s"
+                # Usar 'sql' en lugar de 'self.sql'
+            self.cursor.execute(sql, (inicio, telefono))
+            sql = f"UPDATE `evaluadores` SET final = %s WHERE numero_evaluador = %s"
+                # Usar 'sql' en lugar de 'self.sql'
+            self.cursor.execute(sql, (final, telefono))
+            self.connection.commit()
+        except Exception as e: 
+            print("set datos", e)    
 
+    def get_status_evaluador(self, telefono):
+        try:
+            sql = "SELECT status FROM `evaluadores` WHERE numero_evaluador = %s"
+            self.cursor.execute(sql, (telefono,))
+            result = self.cursor.fetchone()
+
+            if result is not None:
+                return result[0]
+
+            return 0
+        except Exception as e:
+            print("Excepción en get_status_evaluador: ", e)
+            return 0
+    def get_rango_de_evaluacion(self, telefono):
+        try:
+            self.sql = f"SELECT inicio,final FROM `evaluadores` WHERE numero_evaluador = %s"
+            self.cursor.execute(self.sql, (telefono,))
+            self.value = self.cursor.fetchone()
+            if self.value is not None:
+                return self.value
+            return 0
+        except Exception as e:
+            print("Exception en recuperar posicion: ", e)
+    def get_indice_dentro_del_rango(self, telefono, inicio):
+        try:
+            self.sql = f"SELECT indice_dentro_rango FROM `evaluadores` WHERE numero_evaluador = %s"
+            self.cursor.execute(self.sql, (telefono,))
+            self.value = self.cursor.fetchone()
+            print(self.value[0], inicio, self.value[0] + inicio)
+            return self.value[0]
+        except Exception as e:
+            print("Exception en recuperar posicion: ", e)
+    def get_indices_para_evaluar(self, telefono): 
+        try:
+            self.sql = f"SELECT inicio, final FROM `evaluadores` WHERE numero_evaluador = %s"
+            self.cursor.execute(self.sql, (telefono,))
+            self.value = self.cursor.fetchone()
+            if self.value is not None:
+                return self.value
+            return 0
+        except Exception as e:
+            print("Exception en recuperar posicion: ", e)
+            
+    def update_indices(self, telefono, indice): 
+        try: 
+            sql = "UPDATE `evaluadores` SET indice_dentro_rango = %s WHERE numero_evaluador = %s"
+            # Usar 'sql' en lugar de 'self.sql'
+            self.cursor.execute(sql, (indice, telefono))
+            self.connection.commit()
+        except Exception as e: 
+            print("Excepcion ocurrida en update_indices: ", e)
+    # ========================================
+    # USER MODE
+    # ========================================
+    def get_total(self):
+        self.sql = "SELECT id FROM `database`"
+        try:
+            self.cursor.execute(self.sql)
+            self.value = self.cursor.fetchall()
+            print("total", self.value)
+            return len(self.value)
+        except Exception as e:
+            print("Excepcion: ", e)
     def verificar_existencia(self, telefono):
         try:
             # Utiliza una consulta parametrizada para evitar la inyección SQL
@@ -89,11 +195,11 @@ class DB:
 
             return 0
         except Exception as e:
-            print("Excepción en getStatus: ", e)
+            print("Excepción en funcion getStatus: ", e)
             return 0
         
         
-    def setStatus(self, id, status): 
+    def set_status(self, id, status): 
         try: 
             sql = f"UPDATE `database` SET status = %s WHERE id = %s"
             # Usar 'sql' en lugar de 'self.sql'
@@ -113,17 +219,21 @@ class DB:
                 return result
             return 0
         except Exception as e:
-            print("Excepción en getStatus: ", e)
+            print("Excepción en get_all_information: ", e)
+            return 0
+    def get_solo_una_informacion(self, id): 
+        try:
+            sql = "SELECT * FROM `database` WHERE id = %s"
+            self.cursor.execute(sql, (id, ))
+            result = self.cursor.fetchone()
+            print('Result: ', result)
+            return f'Nombre: {result[2]}\nJustificacion: {result[3]}\nDinero: {result[4]},\nLink: {result[5]}'
+        except Exception as e:
+            print("Excepción en get-solo_una_informacion: ", e)
             return 0
         
-    def set_reciben(self, total): 
-        for i in range(2, total): 
-            status = random.randint(0, 1)
-            print(f'El estatus para {i} es {status}')
-            self.setStatus(i, status)
-            
         
-        
+
 
 
 def obtener_Mensaje_whatsapp(message):
@@ -254,22 +364,6 @@ def listReply_Message(number, options, body, footer, sedd, messageId):
     return data
 
 
-def document_Message(number, url, caption, filename):
-    data = json.dumps(
-        {
-            "messaging_product": "whatsapp",
-            "recipient_type": "individual",
-            "to": number,
-            "type": "document",
-            "document": {
-                "link": url,
-                "caption": caption,
-                "filename": filename
-            }
-        }
-    )
-    return data
-
 
 def sticker_Message(number, sticker_id):
     data = json.dumps(
@@ -331,7 +425,7 @@ def replace_start(s):
     else:
         return s
 
-def markRead_Message(messageId):
+def mark_read_Message(messageId):
     
     
     data = json.dumps(
@@ -342,6 +436,9 @@ def markRead_Message(messageId):
         }
     )
     return data
+
+
+
 
 
 def send_mail(datos):
@@ -385,19 +482,21 @@ def send_mail(datos):
     
 def administrar_chatbot(text, number, messageId):
     base = DB()
-    counter = base.recuperar_posicion(number)
-    total = base.get_total()
-    # Correciones
-    if counter is None: 
-        counter = 0
-    if total is None: 
-        total = 0
-        
-    text = text.lower() 
+    #Definimos las variables de carga
+    counter = base.recuperar_posicion(number) or 0
+    total = base.get_total() or 0
+    print(total)
+    text = text.lower()
+    admin_mode = base.get_status_encuesta_finalizada() or 0
     list = []
-    markRead = markRead_Message(messageId)
-    list.append(markRead)
-    if total <= 3:
+    #Marcamos el mensaje como leido
+    mark_read = mark_read_Message(messageId)
+    list.append(mark_read)
+    if total <= TOTAL_SOLICITUDES and not admin_mode:
+
+        if total == TOTAL_SOLICITUDES:
+            # Aqui cambiamos el admin_mode
+            base.set_status_encuesta_finalizada()
         if counter == 0:
             body = "¡Hola! 👋 Bienvenido a ConPasion. ¿Cómo podemos ayudarte hoy?"
             footer = "Equipo Compasion"
@@ -559,21 +658,65 @@ def administrar_chatbot(text, number, messageId):
             data = text_Message(
                 number, "Solamente se puede ingresar una solicitud por numero de telefono. 😁")
             list.append(data)
-    else: 
-        if not base.getStatus('0'): 
-            # Actualizar estado del primero 
-            base.setStatus('0', 1)
-            # Obtener los datos de la tabla 
-            
-            # Establecer quienes si van a tener el apoyo
-            base.set_reciben(3)
-            datos = base.get_all_information()
-            # Mandar el correo de estatus
-            send_mail(datos)
-        data = text_Message(
-                number, "Gracias por querer participar, pero lamentamos informarte que el numero maximo de solicitudes ha sido alcanzado. 👀")
-        list.append(data)
-        
+    else:
+        if number in sett.administradores:
+            admin_counter = base.get_counter_admin_mode(number)
+            print('admin counter: ', admin_counter)
+            if admin_counter == 0: 
+                # Aqui se divien los indices para poder manejarlos
+                datos = base.get_all_information()
+                i = 0
+                pp = len(datos) / len(sett.administradores)
+                for admin in sett.administradores: 
+                    print(admin)
+                    #Asigna los rangos en los que se va a mandar los mensajes
+                    base.set_datos(admin,i + 1, i + pp)
+                    i += pp
+                    message = "Iniciamos con la valoracion de solicitudes. Por favor escribe la palabra 'empezar' para comenzar."
+                
+                    base.set_counter_admin_mode(number, admin_counter)
+                    enviar_Mensaje_whatsapp(text_Message(admin, message))
+            elif admin_counter == 1: 
+                # En esta parte es cuando se les manda el menasje sobre la propuesta 
+                limite_inferior, limite_superior = base.get_rango_de_evaluacion(number)
+                print('inf',limite_inferior, limite_superior)
+                indice = base.get_indice_dentro_del_rango(number, limite_inferior)
+                print('indiece', indice)
+                if (limite_superior - limite_inferior) + 1 >= indice:
+                    
+                    if 'empezar' in text:
+                        print(indice)
+                        body = base.get_solo_una_informacion(indice + 1)
+                        footer = f"Propuesta No. {indice}"
+                        options = ["✅ Aceptar", "❌ Rechazar"]
+                        replyButtonData = buttonReply_Message(
+                                    number, options, body, footer, "sed1", messageId)
+                        list.append(replyButtonData) 
+                    else: 
+                        base.update_indices(number, indice = 0)
+                        
+                    if 'aceptar' in text: 
+                        print(indice + 1)
+                        base.update_indices(number, indice + 1)
+                        base.set_status(indice, 1)
+                        body = 'Siguiente propuesta.'
+                        footer = f"Propuesta No. {indice}"
+                        options = ["✅ Continuar"]
+                        replyButtonData = buttonReply_Message(
+                                    number, options, body, footer, "sed1", messageId)
+                        list.append(replyButtonData) 
+                    if 'rechazar' in text: 
+                        base.update_indices(number, indice + 1)
+                        base.set_status(indice, 0)
+                        body = 'Presiona continuar para ver la siguiente propuesta.'
+                        footer = f"Propuesta No. {indice}"
+                        options = ["✅ Continuar"]
+                        replyButtonData = buttonReply_Message(
+                                    number, options, body, footer, "sed1", messageId)
+                        list.append(replyButtonData) 
+                else: 
+                    message = "Gracias por resolver tu parte del trabajo."
+                    enviar_Mensaje_whatsapp(text_Message(number, message))
     for item in list:
+        print(item)
         enviar_Mensaje_whatsapp(item)
-        

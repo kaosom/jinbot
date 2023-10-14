@@ -1,6 +1,10 @@
+from gevent import monkey
+monkey.patch_all()
+
 from flask import Flask, request
-import sett
-import services
+from recursos.sett import token as tk
+from recursos.services import replace_start, obtener_Mensaje_whatsapp, administrar_chatbot
+import gevent.pywsgi
 
 app = Flask(__name__)
 
@@ -11,7 +15,7 @@ def verificar_token():
         token = request.args.get('hub.verify_token')
         challenge = request.args.get('hub.challenge')
 
-        if token == sett.token and challenge is not None:
+        if token == tk and challenge is not None:
             return challenge
         else:
             return 'token incorrecto', 403
@@ -27,12 +31,12 @@ def recibir_mensajes():
         changes = entry['changes'][0]
         value = changes['value']
         message = value['messages'][0]
-        number = services.replace_start(message['from'])
+        number = replace_start(message['from'])
         messageId = message['id']
         contacts = value['contacts'][0]
         name = contacts['profile']['name']
-        text = services.obtener_Mensaje_whatsapp(message)
-        services.administrar_chatbot(text, number, messageId)
+        text = obtener_Mensaje_whatsapp(message)
+        administrar_chatbot(text, number, messageId)
         return 'enviado'
 
     except Exception as e:
@@ -40,4 +44,5 @@ def recibir_mensajes():
 
 
 if __name__ == '__main__':
-    app.run()
+    http_server = gevent.pywsgi.WSGIServer(('0.0.0.0', 5000), app)
+    http_server.serve_forever()

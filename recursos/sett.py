@@ -1,6 +1,12 @@
+'''
+    Configuraciones generales para el servicio. 
+'''
+
+TOTAL_SOLICITUDES = 12
+
 token = 'compasion'
 
-whatsapp_token = 'EAACOEOZAJ6yQBOZC5MStuDdYoZA4xovnhuDe8AmdNsrSZAgMz7L3J67JiO25E62FBJxLRoaeZA6JNcDqmvO9uIlsuZBDNBD8QkRm9RrfUzOB3SlJcZARAyxLJ08J0hTf4ZAzrC9rVBIqEClDbs4IsPOAHFZCZC4Jl5oeKFvcsPxQX6su1WwOi9ofdKzlhFpIqfoyzseklrVzEFCcEMnKwJ7DQZD'
+whatsapp_token = 'EAACOEOZAJ6yQBO1pE0yfcfVXnBZCxOuIZADCoxwur1dmFCW9Ti0W2gDZC5xnDr5YMSunD4NzSule1ZBRO36C8F7zZCBxAOA9BLLn71s1BnwNWOcJdzBb7WxjZCHXf6sV4aZBzKXRDBrnzYwFZAxPp4I13MswXFbbyPZCZC9STJKmwYxw7Hgr9tBjAk1goWw70pTWsa6IzmCmKImgZCiDRXw2fREZD'
 
 whatsapp_url = 'https://graph.facebook.com/v17.0/105628682642354/messages'
 
@@ -19,7 +25,6 @@ stickers = {
     "gato_triste": 210492141865964,
     "gato_cansado": 1021308728970759
 }
+# Se recupera la lista de administradores de la DB
 
-document_url = "https://www.africau.edu/images/default/sample.pdf"
-
-administradores = '2481284457', '2481559329'
+administradores = '522481284457', '42', '41', '40'

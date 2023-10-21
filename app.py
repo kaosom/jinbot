@@ -1,16 +1,21 @@
-from gevent import monkey
-monkey.patch_all()
+'''
+    PROYECTO DE INGENIERIA DE SOFTWARE 
+            JINBOT (COMPASION)
 
+'''
 from flask import Flask, request
 from recursos.sett import token as tk
 from recursos.services import replace_start, obtener_Mensaje_whatsapp, administrar_chatbot
-import gevent.pywsgi
+
 
 app = Flask(__name__)
 
 
 @app.route('/webhook', methods=['GET'])  # type: ignore
 def verificar_token():
+    '''
+        Verificamos que la conexión sea segura para poder establecer el chat. 
+    '''
     try:
         token = request.args.get('hub.verify_token')
         challenge = request.args.get('hub.challenge')
@@ -44,5 +49,4 @@ def recibir_mensajes():
 
 
 if __name__ == '__main__':
-    http_server = gevent.pywsgi.WSGIServer(('0.0.0.0', 5000), app)
-    http_server.serve_forever()
+    app.run()

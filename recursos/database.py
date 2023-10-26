@@ -17,6 +17,18 @@ class DB:
     # ========================================
     # ADMIN MODE
     # ========================================
+    
+    
+    def formatear(self) -> None: 
+        try:
+            sql = "DELETE FROM `database`"
+            self.cursor.execute(sql)
+            sql = "ALTER TABLE `database` AUTO_INCREMENT = 1"
+            self.cursor.execute(sql)
+            print("Borrado con exito y reiniciado indices con exito.")
+        except Exception as e:
+            print("Excepción en get_status_encuesta_finalizada: ", e)
+            return 0
     def get_status_encuesta_finalizada(self) -> bool:
         '''
         Cuando se llega a un limite especifico el estado de la encuenta finalizada 
@@ -108,17 +120,17 @@ class DB:
             self.cursor.execute(self.sql, (telefono,))
             self.value = self.cursor.fetchone()
             if self.value is not None:
-                return self.value
+                print(self.value)
+                return self.value[0], self.value[1]
             return 0
         except Exception as e:
             print("Exception en recuperar posicion: ", e)
 
-    def get_indice_dentro_del_rango(self, telefono, inicio):
+    def get_indice_dentro_del_rango(self, telefono):
         try:
             self.sql = f"SELECT indice_dentro_rango FROM `evaluadores` WHERE numero_evaluador = %s"
             self.cursor.execute(self.sql, (telefono,))
             self.value = self.cursor.fetchone()
-            print(self.value[0], inicio, self.value[0] + inicio)
             return self.value[0]
         except Exception as e:
             print("Exception en recuperar posicion: ", e)
@@ -167,7 +179,7 @@ class DB:
         try:
             self.cursor.execute(self.sql)
             self.value = self.cursor.fetchall()
-            print("total", self.value)
+            print("Total de solicitudes: ", len(self.value))
             return len(self.value)
         except Exception as e:
             print("Excepcion: ", e)

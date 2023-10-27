@@ -2,7 +2,6 @@
     Logica dentras de los mensajes, seguir el flujo de la conversacion. 
 '''
 
-import smtplib
 import json
 import requests
 from .database import DB
@@ -173,70 +172,53 @@ def mark_read_message(message_id):
     return data
 
 
-def send_mail(datos):
+def send_resultados(datos):
     '''
-        Logica detras del envio de correos electronicos a todos los usuarios
-        con los resultados. 
+        Logica detras de enviar los resultados por chat a todos los usuarios.
     '''
-    name_account = "ComPasion"
-    email_account = "compasion.work@gmail.com"
-    password_account = "yrtrzrhvtovtaqlt"
-
-    server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-    server.ehlo()
-    server.login(email_account, password_account)
-
-    subject = 'Status de convocatoria ComPasion. 💵'
+    mensaje = '<-- EQUIPO COMPASION - RESULTADOS -->\n'
     for dato in datos:
-        number = dato[0]
-        name = dato[1]
-        justification = dato[2]
-        dinero = dato[3]
-        link = dato[4]
-        email = dato[5]
-        status = dato[7]
-
+        number = dato[1]
+        name = dato[2]
+        justification = dato[3]
+        dinero = dato[4]
+        link = dato[5]
+        email = dato[6]
+        status = dato[8] 
         if status:
-            message = "Felicidades!! Has conseguido el apoyo economico por parte de ComPasion. 😁"
+            mensaje += '🎉 FELICIDADES, HAS SIDO SELECCIONADO PARA LA BECA! 🎓'
         else:
-            message = "Lamentamos informarte que tu apoyo por parte de ComPasion ha sido rechazado. 😔\n"
+            mensaje += '😔 LAMENTAMOS INFORMARTE QUE NO HAS SIDO SELECCIONADO PARA LA BECA. 📚'
+        mensaje += f"\n\nDatos ingresados:\n\nNombre: {name}\nJustificación: {justification}\nMonto solicitado: {dinero}\nEnlace: {link}\nCorreo Electrónico: {email}"
+        enviar_mensaje_whatsapp(text_message(number, mensaje))
 
-        message += f'Tu informacion registrada fue la siguiente:\nNumero: {number}\nNombre del Proyecto: {name}\nJustificacion: {justification}\nCantidad de dinero: {dinero}\nLink a video de YouTube: {link}'
-        sent_email = ("From: {0} <{1}>\n"
-                      "To: {2} <{3}>\n"
-                      "Subject: {4}\n\n"
-                      "{5}"
-                      .format(name_account, email_account, name, email, subject, message))
-        print(sent_email)
-        try:
-            server.sendmail(email_account, [email], sent_email)
-        except Exception:
-            print('Could not send email to {}. Error: {}\n'.format(email, str(Exception)))
 
-    # Close smtp server
-    server.close()
 
 
 def administrar_chatbot(text, number, message_id):
     '''
         Logica detras del envio de mensajes. 
     '''
-    base = DB()
     # Definimos las variables iniciales
+    base = DB()
     counter = base.recuperar_posicion(number) or 0
     total = base.get_total() or 0
     admin_mode = base.get_status_encuesta_finalizada() or 0
     # Se le da formato al texto.
     text = text.lower().strip()
-    #Reiniciamos los valores
+    #Comandos para reiniciar los valores
     if 'reiniciar.mecatr0nica.database' in text:
-        base.formatear()
+        base.formatear_database()
         return
     if 'reiniciar.mecatr0nica.evaluadores' in text:
-        base.formatear()
+        base.formatear_evaluadores()
+        return
+    if 'reiniciar.mecatr0nica.datos_globales' in text:
+        base.formatear_datos_globales()
         return
     if 'reiniciar.mecatr0nica.global' in text:
-        base.formatear()
+        # Todos los anteriores
+        base.formatear_global()
         return
     print('Counter -> ', counter)
     print('Mensaje -> ', text)
@@ -245,24 +227,6 @@ def administrar_chatbot(text, number, message_id):
     mark_read = mark_read_message(message_id)
     list.append(mark_read)
     if total <= TOTAL_SOLICITUDES and not admin_mode:
-
-        if total == TOTAL_SOLICITUDES:
-            # Tenemos que dividir cuanto les toca a cada uno
-            # PENDIENTE 
-            # Aqui cambiamos el admin_mode
-            base.set_status_encuesta_finalizada()
-            #Insertamos a los administradores
-            datos = base.get_all_information()
-            i = 0
-            datos_por_administrador = len(datos) / len(sett.administradores)
-            for admin in sett.administradores:
-                print(admin)
-                # Asigna los rangos en los que se va a mandar los mensajes asi como inserta admins
-                base.set_datos_administradores(admin, i + 1, i + datos_por_administrador)
-                i += datos_por_administrador
-                message = "Iniciamos con la valoracion de solicitudes. Por favor escribe la palabra 'empezar' para comenzar."
-                enviar_mensaje_whatsapp(text_message(admin, message))
-            
         if counter == 0:
             body = "¡Hola! 👋 Bienvenido a ConPasion. ¿Cómo podemos ayudarte hoy?"
             footer = "Equipo Compasion"
@@ -422,71 +386,76 @@ def administrar_chatbot(text, number, message_id):
             data = text_message(
                 number, "Muchas gracias por toda su informacion, se le enviara un correo indicando su status. 🕛")
             list.append(data)
+            if total == TOTAL_SOLICITUDES:
+                # Aqui cambiamos el admin_mode
+                base.set_status_encuesta_finalizada()
+                for admin in sett.administradores:
+                    print(f"Emviando mensaje a -> {admin}")
+                    message = "Iniciamos con la valoracion de solicitudes. Por favor escribe la palabra 'empezar' para comenzar."
+                    enviar_mensaje_whatsapp(text_message(admin, message))
             base.modificar_posicion(number, counter)
         else:
             data = text_message(
                 number, "Por favor selecciona una opción valida. 👀")
             list.append(data)
     else:
-        if number in sett.administradores: #Aqui se agrega la conficion que su estatus no este terminado
-            # Recuperamos el counter de admin para saber en que paso se encuentra
-            admin_counter = base.get_counter_admin_mode(number)
-            print('admin counter: ', admin_counter)
-            if admin_counter == 0:
-                # En esta parte es cuando se les manda el menasje sobre la propuesta
-                limite_inferior, limite_superior = base.get_rango_de_evaluacion(
-                    number)
-                print(f'De {limite_inferior} a {limite_superior}')
-                indice_dentro_del_rango = base.get_indice_dentro_del_rango(number)
-                print(f"Indice dentro del rango -> {indice_dentro_del_rango}")
-                # Mantenemos las inspecciones dentro del rango indicado.
-                if (limite_superior - limite_inferior) + 1 >= indice_dentro_del_rango:
-                    if 'empezar' in text:
-                        print(indice_dentro_del_rango)
-                        body = base.get_solo_una_informacion(indice_dentro_del_rango)
-                        footer = f"Propuesta No. {indice_dentro_del_rango}"
-                        options = ["✅ Aceptar", "❌ Rechazar"]
-                        reply_button_data = button_reply_message(
-                            number, options, body, footer, "sed1")
-                        list.append(reply_button_data)
+        if number in sett.administradores and not base.get_status_evaluador(number):
+            #Aqui se agrega la conficion que su estatus no este terminado
+            # En esta parte es cuando se les manda el menasje sobre la propuesta
+            limite_inferior, limite_superior = base.get_rango_de_evaluacion(number)
+            print(f'De {limite_inferior} a {limite_superior}')
+            indice_dentro_del_rango = base.get_indice_dentro_del_rango(number)
+            print(f"Indice dentro del rango -> {indice_dentro_del_rango}")
+               # Mantenemos las inspecciones dentro del rango indicado.
+            if limite_superior > indice_dentro_del_rango:
+                if 'empezar' in text:
+                    print(indice_dentro_del_rango)
+                    body = base.get_solo_una_informacion(
+                    indice_dentro_del_rango)
+                    footer = f"Propuesta No. {indice_dentro_del_rango}"
+                    options = ["✅ Aceptar", "❌ Rechazar"]
+                    reply_button_data = button_reply_message(
+                    number, options, body, footer, "sed1")
+                    list.append(reply_button_data)
+                elif 'continuar' in text:
+                    print(indice_dentro_del_rango)
+                    body = base.get_solo_una_informacion(
+                    indice_dentro_del_rango + 1)
+                    footer = f"Propuesta No. {indice_dentro_del_rango + 1}"
+                    options = ["✅ Aceptar", "❌ Rechazar"]
+                    reply_button_data = button_reply_message(number, options, body, footer, "sed1")
+                    list.append(reply_button_data)
+                    base.update_indices(
+                    number, indice_dentro_del_rango + 1)
 
-                    elif 'continuar' in text:
-                        print(indice_dentro_del_rango)
-                        body = base.get_solo_una_informacion(indice_dentro_del_rango + 1)
-                        footer = f"Propuesta No. {indice_dentro_del_rango + 1}"
-                        options = ["✅ Aceptar", "❌ Rechazar"]
-                        reply_button_data = button_reply_message(
-                            number, options, body, footer, "sed1")
-                        list.append(reply_button_data)
-                        base.update_indices(number, indice_dentro_del_rango + 1)
-
-                    if 'aceptar' in text:
-                        print(indice_dentro_del_rango + 1)
-                        base.update_indices(number, indice_dentro_del_rango )
-                        base.set_status(indice_dentro_del_rango, 1)
-                        body = 'Siguiente propuesta.'
-                        footer = f"Propuesta No. {indice_dentro_del_rango}"
-                        options = ["✅ Continuar"]
-                        reply_button_data = button_reply_message(
-                            number, options, body, footer, "sed1")
-                        list.append(reply_button_data)
-                    if 'rechazar' in text:
-                        base.update_indices(number, indice_dentro_del_rango + 1)
-                        base.set_status(indice_dentro_del_rango, 0)
-                        body = 'Presiona continuar para ver la siguiente propuesta.'
-                        footer = f"Propuesta No. {indice_dentro_del_rango}"
-                        options = ["✅ Continuar"]
-                        reply_button_data = button_reply_message(
-                            number, options, body, footer, "sed1")
-                        list.append(reply_button_data)
-                else:
-                    message = "Gracias por resolver tu parte de la evulación. Ha acabado tu trabajo 👀."
-                    enviar_mensaje_whatsapp(text_message(number, message))
-                    #Se cambia el estado del evaluadador para saber que ya termino.
-                    # PENDIENTE
-            else: 
-                # Se le suma uno al counter del admin
-                base.set_counter_admin_mode(number, admin_counter)
+                elif 'aceptar' in text:
+                    print(indice_dentro_del_rango + 1)
+                    base.update_indices(number, indice_dentro_del_rango)
+                    base.set_status(indice_dentro_del_rango, 1)
+                    body = 'Siguiente propuesta.'
+                    footer = f"Propuesta No. {indice_dentro_del_rango}"
+                    options = ["✅ Continuar"]
+                    reply_button_data = button_reply_message(number, options, body, footer, "sed1")
+                    list.append(reply_button_data)
+                elif 'rechazar' in text:
+                    base.update_indices(
+                    number, indice_dentro_del_rango + 1)
+                    base.set_status(indice_dentro_del_rango, 0)
+                    body = 'Presiona continuar para ver la siguiente propuesta.'
+                    footer = f"Propuesta No. {indice_dentro_del_rango}"
+                    options = ["✅ Continuar"]
+                    reply_button_data = button_reply_message(number, options, body, footer, "sed1")
+                    list.append(reply_button_data)
+            else:
+                message = "Gracias por resolver tu parte de la evulación. Ha acabado tu trabajo 👀."
+                enviar_mensaje_whatsapp(text_message(number, message))
+                # Se cambia el estado del evaluadador para saber que ya termino.
+                base.set_status_evaluador(number)
+                if base.get_status_total_evaluadores() and not base.get_evaluacion_finalizada():
+                    base.set_evaluacion_finalizada()
+                    # Enviamos los resultados. 
+                    datos = base.get_all_information()
+                    send_resultados(datos)
     for item in list:
         print(item)
         enviar_mensaje_whatsapp(item)

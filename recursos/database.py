@@ -1,4 +1,10 @@
+'''
+    Clase de base de datos para todas las operaciones y consultas 
+    en la base. 
+'''
+
 import mysql.connector
+from .sett import administradores
 class DB:
     '''
         Objeto para poder recuperar la base de datos. 
@@ -18,8 +24,27 @@ class DB:
     # ADMIN MODE
     # ========================================
     
+    def set_evaluacion_finalizada(self): 
+        try:
+            sql = "UPDATE `global` SET evaluacion_finalizada = 1 WHERE referencia = 1"
+            self.cursor.execute(sql)
+            self.connection.commit()
+        except Exception as e:
+            print("Excepción en get_status_encuesta_finalizada: ", e)
+            return 0
+
+    def get_evaluacion_finalizada(self): 
+        try:
+            sql = "SELECT  evaluacion_finalizada FROM `global` WHERE referencia = 1"
+            self.cursor.execute(sql)
+            result = self.cursor.fetchone()
+            return result[0]
+        except Exception as e:
+            print("Excepción en get_status_encuesta_finalizada: ", e)
+            return 0
     
-    def formatear(self) -> None: 
+    
+    def formatear_database(self) -> None:
         try:
             sql = "DELETE FROM `database`"
             self.cursor.execute(sql)
@@ -29,6 +54,40 @@ class DB:
         except Exception as e:
             print("Excepción en get_status_encuesta_finalizada: ", e)
             return 0
+        
+    def formatear_datos_globales(self) -> None: 
+        try:
+            sql = "UPDATE `global` SET encuesta_finalizada = 0 WHERE referencia = 1"
+            self.cursor.execute(sql)
+            sql = "UPDATE `global` SET counter = 0 WHERE referencia = 1"
+            self.cursor.execute(sql)
+            sql = "UPDATE `global` SET email_enviado = 0 WHERE referencia = 1"
+            self.cursor.execute(sql)
+            print("Borrado con exito y reiniciado indices con exito.")
+        except Exception as e:
+            print("Excepción en formatear global: ", e)
+            return 0
+        
+    def formatear_evaluadores(self) -> None:
+        try:
+            for i, admin in enumerate(administradores, 0):
+                sql = f"UPDATE `evaluadores` SET indice_dentro_rango = {(i * 10) + 1}  WHERE numero_evaluador = %s"
+                self.cursor.execute(sql, (admin,))
+                sql = "UPDATE `evaluadores` SET status = 0 WHERE numero_evaluador = %s"
+                self.cursor.execute(sql, (admin,))
+            print("Actualizando indices de evaluadores.")
+            self.connection.commit()
+        except Exception as e:
+            print("Excepción en evaluadores_status: ", e)
+            return 0
+
+
+        
+    def formatear_global(self): 
+        self.formatear_datos_globales()
+        self.formatear_database()
+        self.formatear_evaluadores()
+    
     def get_status_encuesta_finalizada(self) -> bool:
         '''
         Cuando se llega a un limite especifico el estado de la encuenta finalizada 
@@ -43,13 +102,23 @@ class DB:
         except Exception as e:
             print("Excepción en get_status_encuesta_finalizada: ", e)
             return 0
+    def get_status_total_evaluadores(self): 
+        try:
+            sql = "SELECT status FROM `evaluadores`"
+            self.cursor.execute(sql)
+            result = self.cursor.fetchall()
+            print(all(result))
+            return all(result)
+        except Exception as e:
+            print("Excepción en get_status_encuesta_finalizada: ", e)
+            return 0
 
     def set_status_encuesta_finalizada(self) -> None:
         '''
         Cambiamos el estado de la encuesta finalizada para entrar en admin mode. 
         '''
         try:
-            sql = f"UPDATE `global` SET encuesta_finalizada = 1 WHERE id = 1"
+            sql = f"UPDATE `global` SET encuesta_finalizada = 1 WHERE referencia = 1"
             # Usar 'sql' en lugar de 'self.sql'
             self.cursor.execute(sql)
             self.connection.commit()
@@ -105,7 +174,7 @@ class DB:
             sql = "SELECT status FROM `evaluadores` WHERE numero_evaluador = %s"
             self.cursor.execute(sql, (telefono,))
             result = self.cursor.fetchone()
-
+            print("Result ", result)
             if result is not None:
                 return result[0]
 
@@ -113,6 +182,14 @@ class DB:
         except Exception as e:
             print("Excepción en get_status_evaluador: ", e)
             return 0
+        
+    def set_status_evaluador(self, telefono):
+        try:
+            sql = "UPDATE `evaluadores` SET status = 1 WHERE numero_evaluador = %s"
+            self.cursor.execute(sql, (telefono,))
+            self.connection.commit()
+        except Exception as e:
+            print("Excepción en set_status_evaluador: ", e)
 
     def get_rango_de_evaluacion(self, telefono):
         try:
@@ -269,9 +346,7 @@ class DB:
         try:
             sql = "SELECT * FROM `database`"
             self.cursor.execute(sql)
-            result = self.cursor.fetchall()
-            print('Result: ', result)
-            print("type", type(result))
+            result = self.cursor.fetchall()  # Recuperar todos los resultados
             if result is not None:
                 return result
             return 0
@@ -279,10 +354,11 @@ class DB:
             print("Excepción en get_all_information: ", e)
             return 0
 
+
     def get_solo_una_informacion(self, id):
         try:
             sql = "SELECT * FROM `database` WHERE id = %s"
-            self.cursor.execute(sql, (id, ))
+            self.cursor.execute(sql, (id,))
             result = self.cursor.fetchone()
             print('Result: ', result)
             return f'Nombre: {result[2]}\nJustificacion: {result[3]}\nDinero: {result[4]},\nLink: {result[5]}'

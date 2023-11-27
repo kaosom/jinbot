@@ -23,8 +23,11 @@ class DB:
     # ========================================
     # ADMIN MODE
     # ========================================
-    
-    def set_evaluacion_finalizada(self): 
+    def set_evaluacion_finalizada(self):
+        '''
+            Funcion para cambiar el estado una vez que todos los 
+            administradores hayan realizado su parte correspondiente. 
+        '''
         try:
             sql = "UPDATE `global` SET evaluacion_finalizada = 1 WHERE referencia = 1"
             self.cursor.execute(sql)
@@ -33,7 +36,11 @@ class DB:
             print("Excepción en get_status_encuesta_finalizada: ", e)
             return 0
 
-    def get_evaluacion_finalizada(self): 
+    def get_evaluacion_finalizada(self):
+        '''
+            Funcion para obtener el estado de la evaluacion y asi no 
+            mandar mas de un mensaje con los resultados. 
+        '''
         try:
             sql = "SELECT  evaluacion_finalizada FROM `global` WHERE referencia = 1"
             self.cursor.execute(sql)
@@ -42,9 +49,11 @@ class DB:
         except Exception as e:
             print("Excepción en get_status_encuesta_finalizada: ", e)
             return 0
-    
-    
     def formatear_database(self) -> None:
+        '''
+            Funcion para borrar todos los datos de la base de datos 
+            de usuarios y reiniciar el contador. 
+        '''
         try:
             sql = "DELETE FROM `database`"
             self.cursor.execute(sql)
@@ -54,8 +63,10 @@ class DB:
         except Exception as e:
             print("Excepción en get_status_encuesta_finalizada: ", e)
             return 0
-        
-    def formatear_datos_globales(self) -> None: 
+    def formatear_datos_globales(self) -> None:
+        """
+            Usa las funciones previas para resetear todos los valores a 0.
+        """        
         try:
             sql = "UPDATE `global` SET encuesta_finalizada = 0 WHERE referencia = 1"
             self.cursor.execute(sql)
@@ -67,7 +78,6 @@ class DB:
         except Exception as e:
             print("Excepción en formatear global: ", e)
             return 0
-        
     def formatear_evaluadores(self) -> None:
         try:
             for i, admin in enumerate(administradores, 0):
@@ -174,7 +184,7 @@ class DB:
             sql = "SELECT status FROM `evaluadores` WHERE numero_evaluador = %s"
             self.cursor.execute(sql, (telefono,))
             result = self.cursor.fetchone()
-            print("Result ", result)
+            # print("Result ", result)
             if result is not None:
                 return result[0]
 
@@ -197,7 +207,7 @@ class DB:
             self.cursor.execute(self.sql, (telefono,))
             self.value = self.cursor.fetchone()
             if self.value is not None:
-                print(self.value)
+                # print(self.value)
                 return self.value[0], self.value[1]
             return 0
         except Exception as e:
@@ -256,7 +266,7 @@ class DB:
         try:
             self.cursor.execute(self.sql)
             self.value = self.cursor.fetchall()
-            print("Total de solicitudes: ", len(self.value))
+            # print("Total de solicitudes: ", len(self.value))
             return len(self.value)
         except Exception as e:
             print("Excepcion: ", e)
@@ -290,7 +300,7 @@ class DB:
             except Exception as e:
                 print("Exception en recuperar posicion: ", e)
         else:
-            print("Retorno cero")
+            # print("Retorno cero")
             return 0
 
     def modificar_posicion(self, telefono, counter, position=None):
@@ -360,7 +370,7 @@ class DB:
             sql = "SELECT * FROM `database` WHERE id = %s"
             self.cursor.execute(sql, (id,))
             result = self.cursor.fetchone()
-            print('Result: ', result)
+            # print('Result: ', result)
             return f'Nombre: {result[2]}\nJustificacion: {result[3]}\nDinero: {result[4]},\nLink: {result[5]}'
         except Exception as e:
             print("Excepción en get-solo_una_informacion: ", e)

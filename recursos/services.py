@@ -4,6 +4,7 @@
 
 import json
 import requests
+import re
 from .database import DB
 from . import sett
 from .sett import TOTAL_SOLICITUDES
@@ -22,8 +23,8 @@ def obtener_mensaje_whatsapp(message):
         text = message['text']['body']
     elif type_message == 'button':
         text = message['button']['text']
-    elif type_message == 'interactive' and message['interactive']['type'] == 'list_reply':
-        text = message['interactive']['list_reply']['title']
+    elif type_message == 'interactive' and message['interactive']['type'] == 'lista_reply':
+        text = message['interactive']['lista_reply']['title']
     elif type_message == 'interactive' and message['interactive']['type'] == 'button_reply':
         text = message['interactive']['button_reply']['title']
     else:
@@ -220,12 +221,12 @@ def administrar_chatbot(text, number, message_id):
         # Todos los anteriores
         base.formatear_global()
         return
-    print('Counter -> ', counter)
-    print('Mensaje -> ', text)
-    list = []
+    # print('Counter -> ', counter)
+    # print('Mensaje -> ', text)
+    lista = []
     # Marcamos el mensaje como leido
     mark_read = mark_read_message(message_id)
-    list.append(mark_read)
+    lista.append(mark_read)
     if total <= TOTAL_SOLICITUDES and not admin_mode:
         if counter == 0:
             body = "¡Hola! 👋 Bienvenido a ConPasion. ¿Cómo podemos ayudarte hoy?"
@@ -235,8 +236,8 @@ def administrar_chatbot(text, number, message_id):
             reply_button_data = button_reply_message(
                 number, options, body, footer, "sed1")
             replyReaction = reply_reaction_message(number, message_id, "🫡")
-            list.append(replyReaction)
-            list.append(reply_button_data)
+            lista.append(replyReaction)
+            lista.append(reply_button_data)
             base.modificar_posicion(number, counter)
         elif "manual" in text and len(text.split()) == 2 and counter == 1 :
             body = "En el orden que se te vaya pidiendo deberás escribir los siguientes datos:\n1. Nombre del proyecto que requiere un apoyo economico.\n2. Justificacion del proyecto (menos de 100 palabras)\n3.Cantidad de dinero.\n4. Video subido a YT para mostrar el proyecto.\n5. Correo para mandar resultados."
@@ -246,7 +247,7 @@ def administrar_chatbot(text, number, message_id):
 
             reply_button_data = button_reply_message(
                 number, options, body, footer, "sed2")
-            list.append(reply_button_data)
+            lista.append(reply_button_data)
             base.modificar_posicion(number, counter)
         elif "quienes somos" in text and len(text.split()) == 3 and counter == 1:
             body = "Somos Canico, una empresa dedicada a la innovación y excelencia en el desarrollo de software 👌. A través de nuestro proyecto de ayuda comunitaria 💟'conpasión'💟, nos esforzamos por hacer una diferencia positiva en la sociedad 💁🏻. Nuestra misión es crear software innovador que cumpla con los más altos estándares de calidad, seguridad y rendimiento, proporcionando herramientas a nuestros clientes para agilizar procesos administrativos, mejorando su eficiencia y productividad 😎.Nuestra visión es ser líderes en el mercado, reconocidos por nuestra excelencia en el desarrollo de soluciones tecnológicas vanguardistas que permiten la recopilación de información de manera normativa y responsable 😀. Nos dedicamos a apoyar a organizaciones de diversos sectores, brindándoles soluciones para capturar, analizar y recopilar información, fomentando la innovación y promoviendo la confianza en la era digital👾."
@@ -256,14 +257,14 @@ def administrar_chatbot(text, number, message_id):
             reply_button_data = button_reply_message(
                 number, options, body, footer, "sed2")
 
-            list.append(reply_button_data)
+            lista.append(reply_button_data)
         elif "empezar" in text and len(text.split()) == 2 and counter == 2:
             data = text_message(
                 number, "Por favor escribe el nombre del proyecto.😊")
-            list.append(data)
+            lista.append(data)
             base.modificar_posicion(number, counter)
         elif counter == 3:
-            print('Dato a guardar en la base: ', text)
+            # print('Dato a guardar en la base: ', text)
             base.insertar(number, text, 'nombre')
             body = "Nombre registrado correctamente.\n¿Quieres modificar el nombre o continuar? 👀"
             footer = "Equipo ComPasion"
@@ -271,30 +272,30 @@ def administrar_chatbot(text, number, message_id):
 
             button_reply = button_reply_message(
                 number, options, body, footer, "sed3")
-            list.append(button_reply)
+            lista.append(button_reply)
             base.modificar_posicion(number, counter)
         elif "cancelar" in text and len(text.split()) == 2:
             data = text_message(
                 number, "Operacion cancelada. Que tengas un buen día. 😊")
-            list.append(data)
+            lista.append(data)
             base.modificar_posicion(number, counter, position= 0)
         elif "modificar" in text and len(text.split()) == 2 and counter == 4:
             data = text_message(
                 number, "Escribe nuevamente el nombre. 😊")
-            list.append(data)
+            lista.append(data)
             base.modificar_posicion(number, counter, position=3)
         elif "continuar" in text and len(text.split()) == 2 and counter == 4:
             data = text_message(
                 number, "Por favor escribe la justificacion.😊")
-            list.append(data)
+            lista.append(data)
             base.modificar_posicion(number, counter)
         elif counter == 5:
             if len(text.split()) > 100:
                 data = text_message(
                     number, "Recuerda que tienen que ser menos de 100 palabras. Por favor vuelve a escribirla.😊")
-                list.append(data)
+                lista.append(data)
             else:
-                print('Dato a guardar en la base: ', text)
+                # print('Dato a guardar en la base: ', text)
                 base.insertar(number, text, 'justificacion')
                 body = "Justificacion registrado correctamente.\n¿Quieres modificar el nombre o continuar? 👀"
                 footer = "Equipo ComPasion"
@@ -302,38 +303,38 @@ def administrar_chatbot(text, number, message_id):
 
                 button_reply = button_reply_message(
                     number, options, body, footer, "sed3")
-                list.append(button_reply)
+                lista.append(button_reply)
                 base.modificar_posicion(number, counter)
         elif "modificar" in text and len(text.split()) == 2 and counter == 6:
             data = text_message(
                 number, "Escribe nuevamente la justificacion. 😊")
-            list.append(data)
+            lista.append(data)
             base.modificar_posicion(number, counter, position=5)
         elif "continuar" in text and len(text.split()) == 2 and counter == 6:
             data = text_message(
                 number, "Por favor escribe la cantidad de dinero.😊")
-            list.append(data)
+            lista.append(data)
             base.modificar_posicion(number, counter)
 
         elif counter == 7:
-            print('Dato a guardar en la base: ', text)
+            # print('Dato a guardar en la base: ', text)
             base.insertar(number, text, 'dinero')
             body = "Cantidad de dinero registrada.\n¿Quieres modificar la cantidad de dinero o continuar? 👀"
             footer = "Equipo ComPasion"
             options = ["✅ Continuar", "❌ Modificar"]
             button_reply = button_reply_message(
                 number, options, body, footer, "sed3")
-            list.append(button_reply)
+            lista.append(button_reply)
             base.modificar_posicion(number, counter)
         elif "modificar" in text and len(text.split()) == 2 and counter == 8:
             data = text_message(
                 number, "Escribe nuevamente la cantidad de dinero. 😊")
-            list.append(data)
+            lista.append(data)
             base.modificar_posicion(number, counter, position=7)
         elif "continuar" in text and len(text.split()) == 2 and counter == 8:
             data = text_message(
                 number, "Ingrese unicamente la URL del video de YouTube.😊\nPor favor asegurese que incluya 'youtube.com' dentro del link para validarlo. 😌")
-            list.append(data)
+            lista.append(data)
             base.modificar_posicion(number, counter)
 
         elif counter == 9:
@@ -343,100 +344,101 @@ def administrar_chatbot(text, number, message_id):
                 options = ["✅ Continuar", "❌ Modificar"]
                 button_reply = button_reply_message(
                     number, options, body, footer, "sed3")
-                list.append(button_reply)
+                lista.append(button_reply)
                 base.modificar_posicion(number, counter)
-                print('Dato a guardar en la base: ', text)
+                # print('Dato a guardar en la base: ', text)
                 base.insertar(number, text, 'video')
             else:
                 data = text_message(
                     number, "Recuerda que tiene que ser un link de YouTube valido.😊")
-                list.append(data)
+                lista.append(data)
         elif "modificar" in text and len(text.split()) == 2 and counter == 10:
             data = text_message(
                 number, "Escribe nuevamente la URL. 😊")
-            list.append(data)
+            lista.append(data)
             base.modificar_posicion(number, counter, position=9)
         elif "continuar" in text and len(text.split()) == 2 and counter == 10:
             data = text_message(
                 number, "Ingrese su correo electronico. 📧")
-            list.append(data)
+            lista.append(data)
             base.modificar_posicion(number, counter)
 
         elif counter == 11:
-            if '@' in text:
-                print('Dato a guardar en la base: ', text)
+            pattern = re.compile(r"\"?([-a-zA-Z0-9.`?{}]+@\w+\.\w+)\"?")
+            if re.match(pattern, text):
+                # print('Dato a guardar en la base: ', text)
                 base.insertar(number, text, 'correo')
                 body = "Correo registrado correctamente.\n¿Quieres modificar el correo o continuar? 👀"
                 footer = "Equipo ComPasion"
                 options = ["✅ Continuar", "❌ Modificar"]
                 button_reply = button_reply_message(
                     number, options, body, footer, "sed3")
-                list.append(button_reply)
+                lista.append(button_reply)
                 base.modificar_posicion(number, counter)
             else:
                 data = text_message(
                     number, "Recuerda que tiene que ser un correo valido.😊")
-                list.append(data)
+                lista.append(data)
         elif "modificar" in text and len(text.split()) == 2 and counter == 12:
             data = text_message(
                 number, "Escribe nuevamente el correo. 😊")
-            list.append(data)
+            lista.append(data)
             base.modificar_posicion(number, counter, position=11)
         elif "continuar" in text and len(text.split()) == 2 and counter == 12:
             data = text_message(
                 number, "Muchas gracias por toda su informacion, se le enviara un correo indicando su status. 🕛")
-            list.append(data)
+            lista.append(data)
             if total == TOTAL_SOLICITUDES:
                 # Aqui cambiamos el admin_mode
                 base.set_status_encuesta_finalizada()
                 for admin in sett.administradores:
-                    print(f"Emviando mensaje a -> {admin}")
+                    # print(f"Emviando mensaje a -> {admin}")
                     message = "Iniciamos con la valoracion de solicitudes. Por favor escribe la palabra 'empezar' para comenzar."
                     enviar_mensaje_whatsapp(text_message(admin, message))
             base.modificar_posicion(number, counter)
         else:
             data = text_message(
                 number, "Por favor selecciona una opción valida. 👀")
-            list.append(data)
+            lista.append(data)
     else:
         if number in sett.administradores and not base.get_status_evaluador(number):
             #Aqui se agrega la conficion que su estatus no este terminado
             # En esta parte es cuando se les manda el menasje sobre la propuesta
             limite_inferior, limite_superior = base.get_rango_de_evaluacion(number)
-            print(f'De {limite_inferior} a {limite_superior}')
+            # print(f'De {limite_inferior} a {limite_superior}')
             indice_dentro_del_rango = base.get_indice_dentro_del_rango(number)
-            print(f"Indice dentro del rango -> {indice_dentro_del_rango}")
+            # print(f"Indice dentro del rango -> {indice_dentro_del_rango}")
                # Mantenemos las inspecciones dentro del rango indicado.
             if limite_superior > indice_dentro_del_rango:
                 if 'empezar' in text:
-                    print(indice_dentro_del_rango)
+                    # print(indice_dentro_del_rango)
                     body = base.get_solo_una_informacion(
                     indice_dentro_del_rango)
                     footer = f"Propuesta No. {indice_dentro_del_rango}"
                     options = ["✅ Aceptar", "❌ Rechazar"]
                     reply_button_data = button_reply_message(
                     number, options, body, footer, "sed1")
-                    list.append(reply_button_data)
+                    lista.append(reply_button_data)
                 elif 'continuar' in text:
-                    print(indice_dentro_del_rango)
+                    # print(indice_dentro_del_rango)
                     body = base.get_solo_una_informacion(
                     indice_dentro_del_rango + 1)
                     footer = f"Propuesta No. {indice_dentro_del_rango + 1}"
                     options = ["✅ Aceptar", "❌ Rechazar"]
                     reply_button_data = button_reply_message(number, options, body, footer, "sed1")
-                    list.append(reply_button_data)
+                    lista.append(reply_button_data)
                     base.update_indices(
                     number, indice_dentro_del_rango + 1)
 
                 elif 'aceptar' in text:
-                    print(indice_dentro_del_rango + 1)
+                    # print(indice_dentro_del_rango + 1)
                     base.update_indices(number, indice_dentro_del_rango)
                     base.set_status(indice_dentro_del_rango, 1)
                     body = 'Siguiente propuesta.'
                     footer = f"Propuesta No. {indice_dentro_del_rango}"
                     options = ["✅ Continuar"]
                     reply_button_data = button_reply_message(number, options, body, footer, "sed1")
-                    list.append(reply_button_data)
+                    lista.append(reply_button_data)
                 elif 'rechazar' in text:
                     base.update_indices(
                     number, indice_dentro_del_rango + 1)
@@ -445,7 +447,7 @@ def administrar_chatbot(text, number, message_id):
                     footer = f"Propuesta No. {indice_dentro_del_rango}"
                     options = ["✅ Continuar"]
                     reply_button_data = button_reply_message(number, options, body, footer, "sed1")
-                    list.append(reply_button_data)
+                    lista.append(reply_button_data)
             else:
                 message = "Gracias por resolver tu parte de la evulación. Ha acabado tu trabajo 👀."
                 enviar_mensaje_whatsapp(text_message(number, message))
@@ -456,6 +458,6 @@ def administrar_chatbot(text, number, message_id):
                     # Enviamos los resultados. 
                     datos = base.get_all_information()
                     send_resultados(datos)
-    for item in list:
-        print(item)
+    for item in lista:
+        # print(item)
         enviar_mensaje_whatsapp(item)
